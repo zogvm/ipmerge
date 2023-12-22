@@ -6,7 +6,7 @@
 #include "stdlib.h"
 #include "string.h"
 #include "math.h"
-
+#include "logger.h"
 #ifdef _WIN32
 #include <windows.h>
 
@@ -607,8 +607,9 @@ void WriteFile(char* filename, union ST *ip, unsigned long onesize, unsigned lon
 
 int main()
 {
-
-	FILE* fp = fopen("./testcsv/out.csv", "wb+");
+	Logger::Initialize(0);
+	LOG(INFO) << "begin";
+	FILE * fp = fopen("./testcsv/out.csv", "wb+");
 	if (fp)
 	{
 		fclose(fp);
