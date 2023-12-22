@@ -277,7 +277,8 @@ char *strtok_r(char *s, const char *delim, char **save_ptr) {
 
 //这里申请4个 占用16G空间 
 //不要超过4 因为 lnewRegion 是unsigned long
-#define SIZE4GxN 4
+//可以 改  2  4 8
+#define SIZE4GxN 8
 struct ST
 {
 	unsigned char g[SIZE4GxN];
@@ -349,12 +350,12 @@ void Num2Region(unsigned char r, char *region)
 	strcpy(region, REGION[r]);
 }
 
-void UL2Region(unsigned long num, char *region)
+void UL2Region(unsigned long long num, char *region)
 {
-	sprintf(region, "%s.%s.%s.%s", REGION[num >> 24 & 0xff], REGION[num >> 16 & 0xff], REGION[num >> 8 & 0xff], REGION[num & 0xff]);
+	sprintf(region, "%s,%s,%s,%s,%s,%s,%s,%s",
+		REGION[num >> 56 & 0xff], REGION[num >> 48 & 0xff], REGION[num >> 40 & 0xff], REGION[num >> 32 & 0xff], 
+		REGION[num >> 24 & 0xff], REGION[num >> 16 & 0xff], REGION[num >> 8 & 0xff], REGION[num & 0xff]);
 }
-
-
 
 void BestRegion(unsigned char *num, char *region)
 {
@@ -407,10 +408,19 @@ void BestRegion(unsigned char *num, char *region)
 
 }
 
-void UL2BestRegion(unsigned long num, char *region)
+void UL2BestRegion(unsigned long long num, char *region)
 {
 	unsigned char a[SIZE4GxN] = { 0 };
-#if SIZE4GxN ==4
+#if SIZE4GxN == 8
+	a[0] = num >> 56 & 0xff;
+	a[1] = num >> 48 & 0xff;
+	a[2] = num >> 40 & 0xff;
+	a[3] = num >> 32 & 0xff;
+	a[4] = num >> 24 & 0xff;
+	a[5] = num >> 16 & 0xff;
+	a[6] = num >> 8 & 0xff;
+	a[7] = num & 0xff;
+#elif SIZE4GxN == 4
 	a[0] = num >> 24 & 0xff;
 	a[1] = num >> 16 & 0xff;
 	a[2] = num >> 8 & 0xff;
@@ -429,7 +439,7 @@ void ReadFile(char* filename, struct ST *ip, unsigned long start, unsigned long 
 
 	char sip[64] = { 0 };
 	char eip[64] = { 0 };
-	char region[16] = { 0 };
+	char region[64] = { 0 };
 
 	unsigned long usip = 0;
 	unsigned long ueip = 0;
@@ -479,12 +489,12 @@ void WriteFile(char* filename, struct ST *ip, unsigned long onesize, unsigned lo
 
 	char sip[64] = { 0 };
 	char eip[64] = { 0 };
-	char region[16] = { 0 };
+	char region[64] = { 0 };
 
 	unsigned long usip = 0;
 	unsigned long ueip = 0;
-	unsigned long lregion = 0;
-	unsigned long lnewRegion = 0;
+	unsigned long long lregion = 0;
+	unsigned long long lnewRegion = 0;
 
 	FILE *fp = fopen(filename, "ab+");
 	if (fp)
@@ -506,8 +516,8 @@ void WriteFile(char* filename, struct ST *ip, unsigned long onesize, unsigned lo
 					ueip = i - 1;
 					Num2Ip(usip + start, sip);
 					Num2Ip(ueip + start, eip);
-					//UL2Region(lregion, region);
-					UL2BestRegion(lregion, region);
+					UL2Region(lregion, region);  //输出 合并后的 所有区域
+					//UL2BestRegion(lregion, region);  //输出 最优区域
 					fprintf(fp, "%s,%s,%s\n", sip, eip, region);
 				}
 				lregion = lnewRegion;
@@ -520,8 +530,8 @@ void WriteFile(char* filename, struct ST *ip, unsigned long onesize, unsigned lo
 			ueip = onesize - 1;
 			Num2Ip(usip + start, sip);
 			Num2Ip(ueip + start, eip);
-			//UL2Region(lregion, region);
-			UL2BestRegion(lregion, region);
+			UL2Region(lregion, region);  //输出 合并后的 所有区域
+			//UL2BestRegion(lregion, region); //输出 最优区域
 			fprintf(fp, "%s,%s,%s\n", sip, eip, region);
 		}
 
@@ -541,7 +551,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	DWORD		as = GetTickCount();
 
-	unsigned int gap = 32;
+	unsigned int gap = 64;
 	unsigned long ONE_SIZE = ULONG_MAX / gap;
 
 	struct ST *ip = (struct ST*)calloc(ONE_SIZE, sizeof(struct ST));
