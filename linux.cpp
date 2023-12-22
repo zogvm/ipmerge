@@ -275,31 +275,6 @@ const char REGION[255][3] =
 	"ZW",
 };
 
-char* strtok_r(char* s, const char* delim, char** save_ptr) {
-	char* token;
-	/*ÅÐ¶Ï²ÎÊýsÊÇ·ñÎªNULL£¬Èç¹ûÊÇNULL¾ÍÒÔ´«µÝ½øÀ´µÄsave_ptr×÷ÎªÆðÊ¼·Ö½âÎ»ÖÃ£»Èô²»ÊÇNULL£¬ÔòÒÔs¿ªÊ¼ÇÐ·Ö*/
-	if (s == NULL) s = *save_ptr;
-
-	/* Scan leading delimiters.  */
-	s += strspn(s, delim);
-	/*ÅÐ¶Ïµ±Ç°´ý·Ö½âµÄÎ»ÖÃÊÇ·ñÎª'\0'£¬ÈôÊÇÔò·µ»ØNULL£¨ÁªÏµµ½£¨Ò»£©ÖÐËùËµ¶Ô·µ»ØÖµÎªNULLµÄ½âÊÍ£©£»²»ÊÇÔò¼ÌÐø¡£*/
-	if (*s == '\0')
-		return NULL;
-
-	/* Find the end of the token.  */
-	token = s;
-	s = strpbrk(token, delim);
-	if (s == NULL)
-		/* This token finishes the string.  */
-		*save_ptr = strchr(token, '\0');
-	else {
-		/* Terminate the token and make *SAVE_PTR point past it.  */
-		*s = '\0';
-		*save_ptr = s + 1;
-	}
-
-	return token;
-}
 
 
 #define SIZE4GxN 8
@@ -312,6 +287,7 @@ union ST
 bool ReadLine(char* buf, char* sip, char* eip, char* region)
 {
 	char* tempBuf = nullptr;
+    LOG(INFO)<<buf;
 	char* sp = buf;
 
 	int i = 0;
@@ -319,15 +295,20 @@ bool ReadLine(char* buf, char* sip, char* eip, char* region)
 	{
 		if (0 == i)
 		{
+
+            LOG(INFO) << sip;
 			strcpy(sip, sp);
 		}
 		else if (1 == i)
 		{
+            LOG(INFO) << eip;
 			strcpy(eip, sp);
 		}
 		else if (2 == i)
 		{
 			strcpy(region, sp);
+            LOG(INFO) << region;
+
 			for (int i = 0; i < 8; i++)
 			{
 				if (region[i] == '\n' || region[i] == '\r')
@@ -625,12 +606,13 @@ int main(int argc, char* argv[])
 		/* #else */
 
 		ReadFile("./testcsv/asn-country-ipv4.csv", ip, start, end);
-		ReadFile("./testcsv/geo-asn-country-ipv4.csv", ip, start, end);
-		ReadFile("./testcsv/dbip-country-ipv4.csv", ip, start, end);
-		ReadFile("./testcsv/geolite2-country-ipv4.csv", ip, start, end);
-		ReadFile("./testcsv/iptoasn-country-ipv4.csv", ip, start, end);
+		/* ReadFile("./testcsv/geo-asn-country-ipv4.csv", ip, start, end); */
+		/* ReadFile("./testcsv/dbip-country-ipv4.csv", ip, start, end); */
+		/* ReadFile("./testcsv/geolite2-country-ipv4.csv", ip, start, end); */
+		/* ReadFile("./testcsv/iptoasn-country-ipv4.csv", ip, start, end); */
 
 		WriteFile("./testcsv/out.csv", ip, ONE_SIZE, start, end);
+        break;
 
 
 		/* #endif */
