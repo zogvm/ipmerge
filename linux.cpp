@@ -6,8 +6,9 @@
 #include "math.h"
 #include <time.h>
 #include <climits>
+#include "logger.h"
 
-#include "stdafx.h"
+// #include "stdafx.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -593,6 +594,8 @@ void WriteFile(char* filename, union ST* ip, unsigned long onesize, unsigned lon
 
 int main(int argc, char* argv[])
 {
+	Logger::Initialize();
+	LOG(INFO) << "begin";
 	FILE* fp = fopen("./testcsv/out.csv", "wb+");
 	if (fp)
 	{
