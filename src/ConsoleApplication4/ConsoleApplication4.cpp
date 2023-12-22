@@ -6,6 +6,7 @@
 #include "stdlib.h"
 #include "string.h"
 #include "windows.h"
+#include "math.h"
 
 const char REGION[255][3] =
 {
@@ -352,9 +353,15 @@ void Num2Region(unsigned char r, char *region)
 
 void UL2Region(unsigned long long num, char *region)
 {
+#if 0
 	sprintf(region, "%s,%s,%s,%s,%s,%s,%s,%s",
 		REGION[num >> 56 & 0xff], REGION[num >> 48 & 0xff], REGION[num >> 40 & 0xff], REGION[num >> 32 & 0xff], 
 		REGION[num >> 24 & 0xff], REGION[num >> 16 & 0xff], REGION[num >> 8 & 0xff], REGION[num & 0xff]);
+#else
+	sprintf(region, "%s,%s,%s,%s,%s,%s,%s,%s",
+		REGION[num  & 0xff], REGION[num >> 8 & 0xff], REGION[num >> 16 & 0xff], REGION[num >> 24 & 0xff],
+		REGION[num >> 32 & 0xff], REGION[num >> 40 & 0xff], REGION[num >> 48 & 0xff], REGION[num >> 56 & 0xff]);
+#endif
 }
 
 void BestRegion(unsigned char *num, char *region)
@@ -506,7 +513,7 @@ void WriteFile(char* filename, struct ST *ip, unsigned long onesize, unsigned lo
 			{
 				if (0 == ip[i].g[j])
 					break;
-				lnewRegion += ip[i].g[j] * 256 * j;
+				lnewRegion += (unsigned long long) ip[i].g[j] * (unsigned long long)pow((double)256, j);
 			}
 
 			if (lregion != lnewRegion)
@@ -549,6 +556,14 @@ int _tmain(int argc, _TCHAR* argv[])
 		fp = NULL;
 	}
 
+	fp = fopen("h:\\testcsv\\out.csv", "wb+");
+	if (fp)
+	{
+		fclose(fp);
+		fp = NULL;
+	}
+
+
 	DWORD		as = GetTickCount();
 
 	unsigned int gap = 64;
@@ -561,11 +576,23 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		unsigned long start = ONE_SIZE * i;
 		unsigned long end = ONE_SIZE * (i + 1);
-
+#if 0
 		ReadFile("d:\\asn-country-ipv4.csv", ip, start, end);
 		ReadFile("d:\\geo-asn-country-ipv4.csv", ip, start, end);
 
 		WriteFile("d:\\out.csv", ip, ONE_SIZE, start, end);
+#else
+
+		ReadFile("h:\\testcsv\\asn-country-ipv4.csv", ip, start, end);
+		ReadFile("h:\\testcsv\\geo-asn-country-ipv4.csv", ip, start, end);
+		ReadFile("h:\\testcsv\\dbip-country-ipv4.csv", ip, start, end);
+		ReadFile("h:\\testcsv\\geolite2-country-ipv4.csv", ip, start, end);
+		ReadFile("h:\\testcsv\\iptoasn-country-ipv4.csv", ip, start, end);
+
+		WriteFile("h:\\testcsv\\out.csv", ip, ONE_SIZE, start, end);
+
+
+#endif
 	}
 
 	DWORD		ae = GetTickCount();
