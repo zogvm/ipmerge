@@ -611,8 +611,8 @@ int main(int argc, char* argv[])
 		ReadFile("./testcsv/asn-country-ipv4.csv", ip, start, end);
 		ReadFile("./testcsv/geo-asn-country-ipv4.csv", ip, start, end);
 		ReadFile("./testcsv/dbip-country-ipv4.csv", ip, start, end);
-		/* ReadFile("./testcsv/geolite2-country-ipv4.csv", ip, start, end); */
-		/* ReadFile("./testcsv/iptoasn-country-ipv4.csv", ip, start, end); */
+		ReadFile("./testcsv/geolite2-country-ipv4.csv", ip, start, end);
+		ReadFile("./testcsv/iptoasn-country-ipv4.csv", ip, start, end);
 
 		WriteFile("./testcsv/out.csv", ip, ONE_SIZE, start, end);
         break;
