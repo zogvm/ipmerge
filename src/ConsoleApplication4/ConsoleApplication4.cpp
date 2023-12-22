@@ -280,9 +280,10 @@ char *strtok_r(char *s, const char *delim, char **save_ptr) {
 //不要超过4 因为 lnewRegion 是unsigned long
 //可以 改  2  4 8
 #define SIZE4GxN 8
-struct ST
+union ST
 {
 	unsigned char g[SIZE4GxN];
+	unsigned long long ulg;
 };
 
 bool ReadLine(char *buf, char *sip, char *eip, char *region)
@@ -364,6 +365,12 @@ void UL2Region(unsigned long long num, char *region)
 #endif
 }
 
+void ST2Region(union ST num, char *region)
+{
+	sprintf(region, "%s,%s,%s,%s,%s,%s,%s,%s",
+		REGION[num.g[0]], REGION[num.g[1]], REGION[num.g[2]], REGION[num.g[3]], REGION[num.g[4]], REGION[num.g[5]], REGION[num.g[6]], REGION[num.g[7]]);
+}
+
 void BestRegion(unsigned char *num, char *region)
 {
 	unsigned char best[SIZE4GxN] = { 0 };
@@ -375,7 +382,7 @@ void BestRegion(unsigned char *num, char *region)
 	for (int j = 0; j < SIZE4GxN; j++)
 	{
 		if (0 == num[j])
-			continue;;
+			continue;
 
 		needadd = true;
 		for (int k = 0; k <= best_index; k++)
@@ -415,6 +422,11 @@ void BestRegion(unsigned char *num, char *region)
 
 }
 
+void ST2BestRegion(union ST num, char *region)
+{
+	BestRegion(num.g, region);
+}
+
 void UL2BestRegion(unsigned long long num, char *region)
 {
 	unsigned char a[SIZE4GxN] = { 0 };
@@ -440,7 +452,7 @@ void UL2BestRegion(unsigned long long num, char *region)
 	BestRegion(a, region);
 }
 
-void ReadFile(char* filename, struct ST *ip, unsigned long start, unsigned long end)
+void ReadFile(char* filename, union ST *ip, unsigned long start, unsigned long end)
 {
 	char buf[256] = { 0 };
 
@@ -490,7 +502,7 @@ void ReadFile(char* filename, struct ST *ip, unsigned long start, unsigned long 
 	}
 }
 
-void WriteFile(char* filename, struct ST *ip, unsigned long onesize, unsigned long start, unsigned long end)
+void WriteFile(char* filename, union ST *ip, unsigned long onesize, unsigned long start, unsigned long end)
 {
 	char buf[256] = { 0 };
 
@@ -500,6 +512,8 @@ void WriteFile(char* filename, struct ST *ip, unsigned long onesize, unsigned lo
 
 	unsigned long usip = 0;
 	unsigned long ueip = 0;
+	union ST stRegion;
+	stRegion.ulg = 0;
 	unsigned long long lregion = 0;
 	unsigned long long lnewRegion = 0;
 
@@ -508,6 +522,7 @@ void WriteFile(char* filename, struct ST *ip, unsigned long onesize, unsigned lo
 	{
 		for (unsigned long i = 0; i < onesize; i++)
 		{
+#if 0
 			lnewRegion = ip[i].g[0];
 			for (int j = 1; j < SIZE4GxN; j++)
 			{
@@ -515,6 +530,8 @@ void WriteFile(char* filename, struct ST *ip, unsigned long onesize, unsigned lo
 					break;
 				lnewRegion += (unsigned long long) ip[i].g[j] * (unsigned long long)pow((double)256, j);
 			}
+#endif
+			lnewRegion = ip[i].ulg;
 
 			if (lregion != lnewRegion)
 			{
@@ -523,11 +540,14 @@ void WriteFile(char* filename, struct ST *ip, unsigned long onesize, unsigned lo
 					ueip = i - 1;
 					Num2Ip(usip + start, sip);
 					Num2Ip(ueip + start, eip);
-					UL2Region(lregion, region);  //输出 合并后的 所有区域
+
+					ST2Region(stRegion, region);
+					//UL2Region(lregion, region);  //输出 合并后的 所有区域
 					//UL2BestRegion(lregion, region);  //输出 最优区域
 					fprintf(fp, "%s,%s,%s\n", sip, eip, region);
 				}
 				lregion = lnewRegion;
+				stRegion.ulg = lregion;
 				usip = i;
 			}
 		}
@@ -537,7 +557,9 @@ void WriteFile(char* filename, struct ST *ip, unsigned long onesize, unsigned lo
 			ueip = onesize - 1;
 			Num2Ip(usip + start, sip);
 			Num2Ip(ueip + start, eip);
-			UL2Region(lregion, region);  //输出 合并后的 所有区域
+
+			ST2Region(stRegion, region);
+			//UL2Region(lregion, region);  //输出 合并后的 所有区域
 			//UL2BestRegion(lregion, region); //输出 最优区域
 			fprintf(fp, "%s,%s,%s\n", sip, eip, region);
 		}
@@ -569,10 +591,10 @@ int _tmain(int argc, _TCHAR* argv[])
 	unsigned int gap = 64;
 	unsigned long ONE_SIZE = ULONG_MAX / gap;
 
-	struct ST *ip = (struct ST*)calloc(ONE_SIZE, sizeof(struct ST));
+	union ST *ip = (union ST*)calloc(ONE_SIZE, sizeof(union ST));
 	for (unsigned long i = 0; i < gap; i++)
 	{
-		memset(ip, 0, ONE_SIZE* sizeof(struct ST));
+		memset(ip, 0, ONE_SIZE* sizeof(union ST));
 
 		unsigned long start = ONE_SIZE * i;
 		unsigned long end = ONE_SIZE * (i + 1);
