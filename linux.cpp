@@ -7,7 +7,7 @@
 #include <time.h>
 #include <climits>
 
-#include "stdafx.h"
+// #include "stdafx.h"
 
 #ifdef _WIN32
 #include <windows.h>
