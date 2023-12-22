@@ -328,10 +328,13 @@ bool ReadLine(char* buf, char* sip, char* eip, char* region)
 
 unsigned long Ip2Num(char* ip)
 {
-	unsigned long u1, u2, u3, u4;
-	return sscanf(ip, "%u.%u.%u.%u", &u1, &u2, &u3, &u4) == 4 &&
-		u1 <= 255 && u2 <= 255 && u3 <= 255 && u4 <= 255
-		? u1 * 16777216 + u2 * 65536 + u3 * 256 + u4 : 0;
+    int octet[4] = {0};
+sscanf(ip, "%d.%d.%d.%d", &octet[0], &octet[1], &octet[2], &octet[3]);
+return (octet[0] << 24) + (octet[1] << 16) + (octet[2] << 8) + octet[3];
+	/* unsigned long u1, u2, u3, u4; */
+	/* return sscanf(ip, "%u.%u.%u.%u", &u1, &u2, &u3, &u4) == 4 && */
+	/* 	u1 <= 255 && u2 <= 255 && u3 <= 255 && u4 <= 255 */
+	/* 	? u1 * 16777216 + u2 * 65536 + u3 * 256 + u4 : 0; */
 }
 
 void Num2Ip(unsigned long num, char* ip)
@@ -606,10 +609,10 @@ int main(int argc, char* argv[])
 		/* #else */
 
 		ReadFile("./testcsv/asn-country-ipv4.csv", ip, start, end);
-		/* ReadFile("./testcsv/geo-asn-country-ipv4.csv", ip, start, end); */
-		/* ReadFile("./testcsv/dbip-country-ipv4.csv", ip, start, end); */
-		/* ReadFile("./testcsv/geolite2-country-ipv4.csv", ip, start, end); */
-		/* ReadFile("./testcsv/iptoasn-country-ipv4.csv", ip, start, end); */
+		ReadFile("./testcsv/geo-asn-country-ipv4.csv", ip, start, end);
+		ReadFile("./testcsv/dbip-country-ipv4.csv", ip, start, end);
+		ReadFile("./testcsv/geolite2-country-ipv4.csv", ip, start, end);
+		ReadFile("./testcsv/iptoasn-country-ipv4.csv", ip, start, end);
 
 		WriteFile("./testcsv/out.csv", ip, ONE_SIZE, start, end);
         break;
