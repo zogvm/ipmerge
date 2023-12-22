@@ -5,6 +5,7 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
+#include "windows.h"
 
 const char REGION[255][3] =
 {
@@ -409,16 +410,20 @@ void BestRegion(unsigned char *num, char *region)
 void UL2BestRegion(unsigned long num, char *region)
 {
 	unsigned char a[SIZE4GxN] = { 0 };
-
+#if SIZE4GxN ==4
 	a[0] = num >> 24 & 0xff;
 	a[1] = num >> 16 & 0xff;
 	a[2] = num >> 8 & 0xff;
 	a[3] = num & 0xff;
+#else
+	a[0] = num >> 8 & 0xff;
+	a[1] = num & 0xff;
+#endif
 
 	BestRegion(a, region);
 }
 
-void ReadFile(char* filename, struct ST *ip)
+void ReadFile(char* filename, struct ST *ip, unsigned long start, unsigned long end)
 {
 	char buf[256] = { 0 };
 
@@ -430,6 +435,8 @@ void ReadFile(char* filename, struct ST *ip)
 	unsigned long ueip = 0;
 	unsigned char uregion = 0;
 
+	unsigned long m = 0;
+
 	FILE *fp = fopen(filename, "rb");
 	if (fp)
 	{
@@ -440,20 +447,25 @@ void ReadFile(char* filename, struct ST *ip)
 				usip = Ip2Num(sip);
 				ueip = Ip2Num(eip);
 				uregion = Region2Num(region);
-				if (uregion != 0)
+				if (uregion == 0)
+					continue;
+				if (usip > end)
+					break;
+				if (ueip < start)
+					continue;
+				for (unsigned long i = (usip > start ? usip : start); i <= ueip && i < end; i++)
 				{
-					for (unsigned long i = usip; i <= ueip; i++)
+					m = i - start;
+					for (int j = 0; j < SIZE4GxN; j++)
 					{
-						for (int j = 0; j < SIZE4GxN; j++)
+						if (0 == ip[m].g[j])
 						{
-							if (0 == ip[i].g[j])
-							{
-								ip[i].g[j] = uregion;
-								break;
-							}
+							ip[m].g[j] = uregion;
+							break;
 						}
 					}
 				}
+
 			}
 		}
 		fclose(fp);
@@ -461,7 +473,7 @@ void ReadFile(char* filename, struct ST *ip)
 	}
 }
 
-void WriteFile(char* filename, struct ST *ip)
+void WriteFile(char* filename, struct ST *ip, unsigned long onesize, unsigned long start, unsigned long end)
 {
 	char buf[256] = { 0 };
 
@@ -474,10 +486,10 @@ void WriteFile(char* filename, struct ST *ip)
 	unsigned long lregion = 0;
 	unsigned long lnewRegion = 0;
 
-	FILE *fp = fopen(filename, "wb+");
+	FILE *fp = fopen(filename, "ab+");
 	if (fp)
 	{
-		for (unsigned long i = 0; i < ULONG_MAX; i++)
+		for (unsigned long i = 0; i < onesize; i++)
 		{
 			lnewRegion = ip[i].g[0];
 			for (int j = 1; j < SIZE4GxN; j++)
@@ -489,11 +501,11 @@ void WriteFile(char* filename, struct ST *ip)
 
 			if (lregion != lnewRegion)
 			{
-				if (i > 0)
+				if (i > 0 && 0 != lregion)
 				{
 					ueip = i - 1;
-					Num2Ip(usip, sip);
-					Num2Ip(ueip, eip);
+					Num2Ip(usip + start, sip);
+					Num2Ip(ueip + start, eip);
 					//UL2Region(lregion, region);
 					UL2BestRegion(lregion, region);
 					fprintf(fp, "%s,%s,%s\n", sip, eip, region);
@@ -502,6 +514,17 @@ void WriteFile(char* filename, struct ST *ip)
 				usip = i;
 			}
 		}
+
+		if (0 != lregion)
+		{
+			ueip = onesize - 1;
+			Num2Ip(usip + start, sip);
+			Num2Ip(ueip + start, eip);
+			//UL2Region(lregion, region);
+			UL2BestRegion(lregion, region);
+			fprintf(fp, "%s,%s,%s\n", sip, eip, region);
+		}
+
 		fclose(fp);
 		fp = NULL;
 	}
@@ -509,12 +532,34 @@ void WriteFile(char* filename, struct ST *ip)
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	struct ST *ip = (struct ST*)calloc(ULONG_MAX, sizeof(struct ST));
+	FILE *fp = fopen("d:\\out.csv", "wb+");
+	if (fp)
+	{
+		fclose(fp);
+		fp = NULL;
+	}
 
-	ReadFile("d:\\asn-country-ipv4.csv", ip);
-	ReadFile("d:\\geo-asn-country-ipv4.csv", ip);
+	DWORD		as = GetTickCount();
 
-	WriteFile("d:\\out.csv", ip);
+	unsigned int gap = 32;
+	unsigned long ONE_SIZE = ULONG_MAX / gap;
+
+	struct ST *ip = (struct ST*)calloc(ONE_SIZE, sizeof(struct ST));
+	for (unsigned long i = 0; i < gap; i++)
+	{
+		memset(ip, 0, ONE_SIZE* sizeof(struct ST));
+
+		unsigned long start = ONE_SIZE * i;
+		unsigned long end = ONE_SIZE * (i + 1);
+
+		ReadFile("d:\\asn-country-ipv4.csv", ip, start, end);
+		ReadFile("d:\\geo-asn-country-ipv4.csv", ip, start, end);
+
+		WriteFile("d:\\out.csv", ip, ONE_SIZE, start, end);
+	}
+
+	DWORD		ae = GetTickCount();
+	printf("time:%lf\n", (ae - as) / 1000.0);
 	return 0;
 }
 
