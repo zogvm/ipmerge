@@ -1,12 +1,62 @@
 // ConsoleApplication4.cpp : Defines the entry point for the console application.
 //
 
-#include "stdafx.h"
+
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
-#include "windows.h"
 #include "math.h"
+
+#ifdef _WIN32
+#include <windows.h>
+
+unsigned long GetTickCountPortable() {
+	return GetTickCount();
+}
+
+char* strtok_r(char* s, const char* delim, char** save_ptr) {
+	char* token;
+	/*判断参数s是否为NULL，如果是NULL就以传递进来的save_ptr作为起始分解位置；若不是NULL，则以s开始切分*/
+	if (s == NULL) s = *save_ptr;
+
+	/* Scan leading delimiters.  */
+	s += strspn(s, delim);
+	/*判断当前待分解的位置是否为'\0'，若是则返回NULL（联系到（一）中所说对返回值为NULL的解释）；不是则继续。*/
+	if (*s == '\0')
+		return NULL;
+
+	/* Find the end of the token.  */
+	token = s;
+	s = strpbrk(token, delim);
+	if (s == NULL)
+		/* This token finishes the string.  */
+		*save_ptr = strchr(token, '\0');
+	else {
+		/* Terminate the token and make *SAVE_PTR point past it.  */
+		*s = '\0';
+		*save_ptr = s + 1;
+	}
+
+	return token;
+}
+
+
+
+#else
+#include <time.h>
+
+unsigned long  GetTickCountPortable() {
+	struct timespec ts;
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
+		// Handle error
+		return 0;
+	}
+	return (unsigned long long)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+}
+#endif
+
+
+#define FXULONG_MAX 0xffffffffUL //4G
 
 const char REGION[255][3] =
 {
@@ -250,31 +300,7 @@ const char REGION[255][3] =
 	"ZW",
 };
 
-char *strtok_r(char *s, const char *delim, char **save_ptr) {
-	char *token;
-	/*判断参数s是否为NULL，如果是NULL就以传递进来的save_ptr作为起始分解位置；若不是NULL，则以s开始切分*/
-	if (s == NULL) s = *save_ptr;
 
-	/* Scan leading delimiters.  */
-	s += strspn(s, delim);
-	/*判断当前待分解的位置是否为'\0'，若是则返回NULL（联系到（一）中所说对返回值为NULL的解释）；不是则继续。*/
-	if (*s == '\0')
-		return NULL;
-
-	/* Find the end of the token.  */
-	token = s;
-	s = strpbrk(token, delim);
-	if (s == NULL)
-		/* This token finishes the string.  */
-		*save_ptr = strchr(token, '\0');
-	else {
-		/* Terminate the token and make *SAVE_PTR point past it.  */
-		*s = '\0';
-		*save_ptr = s + 1;
-	}
-
-	return token;
-}
 
 //这里申请4个 占用16G空间 
 //不要超过4 因为 lnewRegion 是unsigned long
@@ -579,27 +605,21 @@ void WriteFile(char* filename, union ST *ip, unsigned long onesize, unsigned lon
 	}
 }
 
-int _tmain(int argc, _TCHAR* argv[])
+int main()
 {
-	FILE *fp = fopen("d:\\out.csv", "wb+");
+
+	FILE* fp = fopen("./testcsv/out.csv", "wb+");
 	if (fp)
 	{
 		fclose(fp);
 		fp = NULL;
 	}
 
-	fp = fopen("h:\\testcsv\\out.csv", "wb+");
-	if (fp)
-	{
-		fclose(fp);
-		fp = NULL;
-	}
 
-
-	DWORD		as = GetTickCount();
+	unsigned long		as = GetTickCountPortable();
 
 	unsigned int gap = 64;
-	unsigned long ONE_SIZE = ULONG_MAX / gap;
+	unsigned long ONE_SIZE = FXULONG_MAX / gap;
 	printf("%lld\r\n", ONE_SIZE);
 	union ST *ip = (union ST*)calloc(ONE_SIZE, sizeof(union ST));
 	for (unsigned long i = 0; i < gap; i++)
@@ -615,19 +635,19 @@ int _tmain(int argc, _TCHAR* argv[])
 		WriteFile("d:\\out.csv", ip, ONE_SIZE, start, end);
 #else
 
-		ReadFile("h:\\testcsv\\asn-country-ipv4.csv", ip, start, end);
-		ReadFile("h:\\testcsv\\geo-asn-country-ipv4.csv", ip, start, end);
-		ReadFile("h:\\testcsv\\dbip-country-ipv4.csv", ip, start, end);
-		ReadFile("h:\\testcsv\\geolite2-country-ipv4.csv", ip, start, end);
-		ReadFile("h:\\testcsv\\iptoasn-country-ipv4.csv", ip, start, end);
+		ReadFile("./testcsv/asn-country-ipv4.csv", ip, start, end);
+		ReadFile("./testcsv/geo-asn-country-ipv4.csv", ip, start, end);
+		ReadFile("./testcsv/dbip-country-ipv4.csv", ip, start, end);
+		ReadFile("./testcsv/geolite2-country-ipv4.csv", ip, start, end);
+		ReadFile("./testcsv/iptoasn-country-ipv4.csv", ip, start, end);
 
-		WriteFile("h:\\testcsv\\out.csv", ip, ONE_SIZE, start, end);
+		WriteFile("./testcsv/out.csv", ip, ONE_SIZE, start, end);
 
 
 #endif
 	}
 
-	DWORD		ae = GetTickCount();
+	unsigned long ae = GetTickCountPortable();
 	printf("time:%lf\n", (ae - as) / 1000.0);
 	return 0;
 }
