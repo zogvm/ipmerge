@@ -325,14 +325,19 @@ bool ReadLine(char *buf, char *sip, char *eip, char *region)
 unsigned long Ip2Num(char *ip)
 {
 	unsigned long u1, u2, u3, u4;
-	return sscanf_s(ip, "%u.%u.%u.%u", &u1, &u2, &u3, &u4) == 4 &&
-		u1 <= 255 && u2 <= 255 && u3 <= 255 && u4 <= 255
-		? u1 * 16777216 + u2 * 65536 + u3 * 256 + u4 : 0;
+	if (sscanf(ip, "%lu.%lu.%lu.%lu", &u1, &u2, &u3, &u4) == 4)
+	{
+		if (u1 <= 255 && u2 <= 255 && u3 <= 255 && u4 <= 255)
+		{
+			return u1 * 16777216 + u2 * 65536 + u3 * 256 + u4 ;
+		}
+	}
+	return 0;
 }
 
 void Num2Ip(unsigned long num, char *ip)
 {
-	sprintf(ip, "%u.%u.%u.%u", num >> 24 & 0xff, num >> 16 & 0xff, num >> 8 & 0xff, num & 0xff);
+	sprintf(ip, "%lu.%lu.%lu.%lu", num >> 24 & 0xff, num >> 16 & 0xff, num >> 8 & 0xff, num & 0xff);
 }
 
 unsigned char Region2Num(char *region)
@@ -532,7 +537,12 @@ void WriteFile(char* filename, union ST *ip, unsigned long onesize, unsigned lon
 			}
 #endif
 			lnewRegion = ip[i].ulg;
-
+			if (0 == i)
+			{
+				lregion = lnewRegion;
+				stRegion.ulg = lregion;
+				usip = i;
+			}
 			if (lregion != lnewRegion)
 			{
 				if (i > 0 && 0 != lregion)
@@ -590,7 +600,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	unsigned int gap = 64;
 	unsigned long ONE_SIZE = ULONG_MAX / gap;
-
+	printf("%lld\r\n", ONE_SIZE);
 	union ST *ip = (union ST*)calloc(ONE_SIZE, sizeof(union ST));
 	for (unsigned long i = 0; i < gap; i++)
 	{
