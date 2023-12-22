@@ -300,17 +300,32 @@ const char REGION[255][3] =
 	"ZW",
 };
 
-
-
-//这里申请4个 占用16G空间 
-//不要超过4 因为 lnewRegion 是unsigned long
-//可以 改  2  4 8
-#define SIZE4GxN 8
-union ST
+//这里  2 4
+#define CityMax 2
+union CityUnion
 {
-	unsigned char g[SIZE4GxN];
+	//注意 设为16位 占2个字节，如果LINUX为4个字节的话 最多2个 
+	//填枚举 而不是字符串
+	unsigned short c[CityMax];
+	unsigned long long ulc;
+};
+
+//可以 改  2  4 8
+#define RegionMax 8
+union RegionUnion
+{
+	unsigned char g[RegionMax];
 	unsigned long long ulg;
 };
+
+struct Data
+{
+	union RegionUnion uRegion;
+	union CityUnion uCity;
+	
+};
+
+
 
 bool ReadLine(char *buf, char *sip, char *eip, char *region)
 {
@@ -396,7 +411,7 @@ void UL2Region(unsigned long long num, char *region)
 #endif
 }
 
-void ST2Region(union ST num, char *region)
+void ST2Region(union RegionUnion num, char *region)
 {
 	sprintf(region, "%s,%s,%s,%s,%s,%s,%s,%s",
 		REGION[num.g[0]], REGION[num.g[1]], REGION[num.g[2]], REGION[num.g[3]], REGION[num.g[4]], REGION[num.g[5]], REGION[num.g[6]], REGION[num.g[7]]);
@@ -404,13 +419,13 @@ void ST2Region(union ST num, char *region)
 
 void BestRegion(unsigned char *num, char *region)
 {
-	unsigned char best[SIZE4GxN] = { 0 };
-	unsigned char bestNum[SIZE4GxN] = { 0 };
+	unsigned char best[RegionMax] = { 0 };
+	unsigned char bestNum[RegionMax] = { 0 };
 	unsigned char best_index = 0;
 	unsigned char best_max = 0;
 
 	bool needadd = false;
-	for (int j = 0; j < SIZE4GxN; j++)
+	for (int j = 0; j < RegionMax; j++)
 	{
 		if (0 == num[j])
 			continue;
@@ -453,15 +468,15 @@ void BestRegion(unsigned char *num, char *region)
 
 }
 
-void ST2BestRegion(union ST num, char *region)
+void ST2BestRegion(union RegionUnion num, char *region)
 {
 	BestRegion(num.g, region);
 }
 
 void UL2BestRegion(unsigned long long num, char *region)
 {
-	unsigned char a[SIZE4GxN] = { 0 };
-#if SIZE4GxN == 8
+	unsigned char a[RegionMax] = { 0 };
+#if RegionMax == 8
 	a[0] = num >> 56 & 0xff;
 	a[1] = num >> 48 & 0xff;
 	a[2] = num >> 40 & 0xff;
@@ -470,7 +485,7 @@ void UL2BestRegion(unsigned long long num, char *region)
 	a[5] = num >> 16 & 0xff;
 	a[6] = num >> 8 & 0xff;
 	a[7] = num & 0xff;
-#elif SIZE4GxN == 4
+#elif RegionMax == 4
 	a[0] = num >> 24 & 0xff;
 	a[1] = num >> 16 & 0xff;
 	a[2] = num >> 8 & 0xff;
@@ -483,7 +498,7 @@ void UL2BestRegion(unsigned long long num, char *region)
 	BestRegion(a, region);
 }
 
-void ReadFile(char* filename, union ST *ip, unsigned long start, unsigned long end)
+void ReadFile(char* filename, struct Data *ip, unsigned long start, unsigned long end)
 {
 	char buf[256] = { 0 };
 
@@ -516,11 +531,11 @@ void ReadFile(char* filename, union ST *ip, unsigned long start, unsigned long e
 				for (unsigned long i = (usip > start ? usip : start); i <= ueip && i < end; i++)
 				{
 					m = i - start;
-					for (int j = 0; j < SIZE4GxN; j++)
+					for (int j = 0; j < RegionMax; j++)
 					{
-						if (0 == ip[m].g[j])
+						if (0 == ip[m].uRegion.g[j])
 						{
-							ip[m].g[j] = uregion;
+							ip[m].uRegion.g[j] = uregion;
 							break;
 						}
 					}
@@ -533,7 +548,7 @@ void ReadFile(char* filename, union ST *ip, unsigned long start, unsigned long e
 	}
 }
 
-void WriteFile(char* filename, union ST *ip, unsigned long onesize, unsigned long start, unsigned long end)
+void WriteFile(char* filename, struct Data *ip, unsigned long onesize, unsigned long start, unsigned long end)
 {
 	char buf[256] = { 0 };
 
@@ -543,7 +558,7 @@ void WriteFile(char* filename, union ST *ip, unsigned long onesize, unsigned lon
 
 	unsigned long usip = 0;
 	unsigned long ueip = 0;
-	union ST stRegion;
+	union RegionUnion stRegion;
 	stRegion.ulg = 0;
 	unsigned long long lregion = 0;
 	unsigned long long lnewRegion = 0;
@@ -554,15 +569,15 @@ void WriteFile(char* filename, union ST *ip, unsigned long onesize, unsigned lon
 		for (unsigned long i = 0; i < onesize; i++)
 		{
 #if 0
-			lnewRegion = ip[i].g[0];
-			for (int j = 1; j < SIZE4GxN; j++)
+			lnewRegion = ip[i].uRegion.g[0];
+			for (int j = 1; j < RegionMax; j++)
 			{
-				if (0 == ip[i].g[j])
+				if (0 == ip[i].uRegion.g[j])
 					break;
-				lnewRegion += (unsigned long long) ip[i].g[j] * (unsigned long long)pow((double)256, j);
+				lnewRegion += (unsigned long long) ip[i].uRegion.g[j] * (unsigned long long)pow((double)256, j);
 			}
 #endif
-			lnewRegion = ip[i].ulg;
+			lnewRegion = ip[i].uRegion.ulg;
 			if (0 == i)
 			{
 				lregion = lnewRegion;
@@ -609,27 +624,30 @@ int main()
 {
 	Logger::Initialize(0);
 	LOG(INFO) << "begin";
+#ifdef _WIN32
+	FILE * fp = fopen("d:\\testcsv\\out.csv", "wb+");
+#else
 	FILE * fp = fopen("./testcsv/out.csv", "wb+");
+#endif
 	if (fp)
 	{
 		fclose(fp);
 		fp = NULL;
 	}
 
-
 	unsigned long		as = GetTickCountPortable();
 
 	unsigned int gap = 64;
 	unsigned long ONE_SIZE = FXULONG_MAX / gap;
 	printf("%lld\r\n", ONE_SIZE);
-	union ST *ip = (union ST*)calloc(ONE_SIZE, sizeof(union ST));
+	struct Data *ip = (struct Data*)calloc(ONE_SIZE, sizeof(struct Data));
 	for (unsigned long i = 0; i < gap; i++)
 	{
-		memset(ip, 0, ONE_SIZE* sizeof(union ST));
+		memset(ip, 0, ONE_SIZE* sizeof(struct Data));
 
 		unsigned long start = ONE_SIZE * i;
 		unsigned long end = ONE_SIZE * (i + 1);
-#if 0
+#if 1
 		ReadFile("d:\\asn-country-ipv4.csv", ip, start, end);
 		ReadFile("d:\\geo-asn-country-ipv4.csv", ip, start, end);
 
