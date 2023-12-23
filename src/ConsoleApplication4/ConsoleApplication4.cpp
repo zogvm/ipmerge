@@ -58,7 +58,7 @@ unsigned long  GetTickCountPortable() {
 
 #define FXULONG_MAX 0xffffffffUL //4G
 
-const char REGION[255][3] =
+const char CountryCode[255][3] =
 {
 	"",
 	"AD",
@@ -300,135 +300,36 @@ const char REGION[255][3] =
 	"ZW",
 };
 
-//这里  2 4
-#define CityMax 2
-union CityUnion
+
+enum FileType
 {
-	//注意 设为16位 占2个字节，如果LINUX为4个字节的话 最多2个 
-	//填枚举 而不是字符串
-	unsigned short c[CityMax];
-	unsigned long long ulc;
+	File_Country,
+	File_City,
 };
 
+
+
 //可以 改  2  4 8
-#define RegionMax 8
-union RegionUnion
+#define CountryMax 8
+union CountryUnion
 {
-	unsigned char g[RegionMax];
+	unsigned char g[CountryMax];
 	unsigned long long ulg;
 };
 
-struct Data
+
+unsigned char BestCountry(unsigned char *num)
 {
-	union RegionUnion uRegion;
-	union CityUnion uCity;
-	
-};
-
-
-
-bool ReadLine(char *buf, char *sip, char *eip, char *region)
-{
-	char *tempBuf = nullptr;
-	char *sp = buf;
-
-	int i = 0;
-	while (nullptr != (sp = strtok_r(sp, ",", &tempBuf)))
-	{
-		if (0 == i)
-		{
-			strcpy(sip, sp);
-		}
-		else if (1 == i)
-		{
-			strcpy(eip, sp);
-		}
-		else if (2 == i)
-		{
-			strcpy(region, sp);
-			for (int i = 0; i < 8; i++)
-			{
-				if (region[i] == '\n' || region[i] == '\r')
-				{
-					region[i] = 0;
-				}
-			}
-		}
-		//printf(sp);
-		//printf("\r\n");
-		sp = nullptr;
-		i++;
-	}
-
-	return i == 3;
-}
-
-unsigned long Ip2Num(char *ip)
-{
-	unsigned long u1, u2, u3, u4;
-	if (sscanf(ip, "%lu.%lu.%lu.%lu", &u1, &u2, &u3, &u4) == 4)
-	{
-		if (u1 <= 255 && u2 <= 255 && u3 <= 255 && u4 <= 255)
-		{
-			return u1 * 16777216 + u2 * 65536 + u3 * 256 + u4 ;
-		}
-	}
-	return 0;
-}
-
-void Num2Ip(unsigned long num, char *ip)
-{
-	sprintf(ip, "%lu.%lu.%lu.%lu", num >> 24 & 0xff, num >> 16 & 0xff, num >> 8 & 0xff, num & 0xff);
-}
-
-unsigned char Region2Num(char *region)
-{
-	for (int i = 0; i < 255; i++)
-	{
-		if (0 == strcmp(region, REGION[i]))
-		{
-			return i;
-		}
-	}
-	return 0;
-}
-
-void Num2Region(unsigned char r, char *region)
-{
-	strcpy(region, REGION[r]);
-}
-
-void UL2Region(unsigned long long num, char *region)
-{
-#if 0
-	sprintf(region, "%s,%s,%s,%s,%s,%s,%s,%s",
-		REGION[num >> 56 & 0xff], REGION[num >> 48 & 0xff], REGION[num >> 40 & 0xff], REGION[num >> 32 & 0xff], 
-		REGION[num >> 24 & 0xff], REGION[num >> 16 & 0xff], REGION[num >> 8 & 0xff], REGION[num & 0xff]);
-#else
-	sprintf(region, "%s,%s,%s,%s,%s,%s,%s,%s",
-		REGION[num  & 0xff], REGION[num >> 8 & 0xff], REGION[num >> 16 & 0xff], REGION[num >> 24 & 0xff],
-		REGION[num >> 32 & 0xff], REGION[num >> 40 & 0xff], REGION[num >> 48 & 0xff], REGION[num >> 56 & 0xff]);
-#endif
-}
-
-void ST2Region(union RegionUnion num, char *region)
-{
-	sprintf(region, "%s,%s,%s,%s,%s,%s,%s,%s",
-		REGION[num.g[0]], REGION[num.g[1]], REGION[num.g[2]], REGION[num.g[3]], REGION[num.g[4]], REGION[num.g[5]], REGION[num.g[6]], REGION[num.g[7]]);
-}
-
-void BestRegion(unsigned char *num, char *region)
-{
-	unsigned char best[RegionMax] = { 0 };
-	unsigned char bestNum[RegionMax] = { 0 };
+	unsigned char best[CountryMax] = { 0 };
+	unsigned char bestNum[CountryMax] = { 0 };
 	unsigned char best_index = 0;
 	unsigned char best_max = 0;
 
 	bool needadd = false;
-	for (int j = 0; j < RegionMax; j++)
+	for (int j = 0; j < CountryMax; j++)
 	{
 		if (0 == num[j])
-			continue;
+			break;
 
 		needadd = true;
 		for (int k = 0; k <= best_index; k++)
@@ -461,22 +362,277 @@ void BestRegion(unsigned char *num, char *region)
 	{
 		if (bestNum[k] == best_max)
 		{
-			Num2Region(best[k], region);
-			break;
+			return best[k];
+		}
+	}
+	return 0;
+}
+
+#define CITY_STRING_SIZE 32
+struct Data
+{
+	//国家文件
+	union CountryUnion uCountry;
+	unsigned char ucBestCountry;
+
+	//以下是城市文件 城市只支持一个
+	unsigned char ucCityFileCountry;
+	char cState[CITY_STRING_SIZE];
+	char cCity[CITY_STRING_SIZE];
+	double  dLatitude;
+	double dLongitude;
+
+	void Copy(struct Data a)
+	{
+		uCountry.ulg = a.uCountry.ulg;
+		ucBestCountry = a.ucBestCountry;
+		ucCityFileCountry = a.ucCityFileCountry;
+		memcpy(cState, a.cState, CITY_STRING_SIZE);
+		memcpy(cCity, a.cCity, CITY_STRING_SIZE);
+
+		dLatitude = a.dLatitude;
+		dLongitude = a.dLongitude;
+	}
+
+	bool CmpForCity(struct Data a, bool useCountry)
+	{
+		if (useCountry)
+		{
+			return ucBestCountry == a.ucBestCountry;
+		}
+		else
+		{
+			if (ucBestCountry == a.ucBestCountry)
+			{
+				return ucCityFileCountry == a.ucCityFileCountry
+					&& 0 == strcmp(cState, a.cState)
+					&& 0 == strcmp(cCity, a.cCity)
+					&& (long long)(dLatitude * 1000) == (long long)(a.dLatitude * 1000)
+					&& (long long)(dLongitude * 1000) == (long long)(a.dLongitude * 1000);
+			}
+			else
+			{
+				return false;
+			}
+
 		}
 	}
 
+	bool IsUseCountry()
+	{
+		if (0 == ucCityFileCountry)
+		{
+			return true; //useCountry
+		}
+
+		if (0 == ucBestCountry)
+		{
+			ucBestCountry = ucCityFileCountry;
+			return false; //useCity
+		}
+
+		//不一样 全清
+		if (ucBestCountry != ucCityFileCountry)
+		{
+			ucCityFileCountry = 0;
+			memset(cState, 0, CITY_STRING_SIZE);
+			memset(cCity, 0, CITY_STRING_SIZE);
+			dLatitude = 0;
+			dLongitude = 0;
+			return true; //useCountry
+		}
+		else
+		{
+			return false; //useCity
+		}
+	}
+
+	void GenBestCountry()
+	{
+		if (0 == uCountry.ulg)
+		{
+			ucBestCountry = 0;
+		}
+		else if (0 == uCountry.g[1])
+		{
+			ucBestCountry = uCountry.g[0];
+		}
+		else
+		{
+			bool allsame = true;
+			unsigned char a = 0;
+			for (int j = 0; j < CountryMax; j++)
+			{
+				if (0 == uCountry.g[j])
+					break;
+				if (0 == j)
+				{
+					a = uCountry.g[j];
+				}
+				else  if (a != uCountry.g[j])
+				{
+					allsame = false;
+					break;
+				}
+			}
+
+			if (allsame)
+				ucBestCountry = a;
+			else
+				ucBestCountry = BestCountry(uCountry.g);
+		}
+	}
+
+};
+
+
+bool ReadLine(
+	char *buf,
+	char *sip, int sipSize,
+	char *eip, int eipSize,
+	char *country, int countrySize,
+	char* state, int stateSize,
+	char* city, int citySize,
+	double *latitude,
+	double *longitude,
+	FileType type)
+{
+	char *tempBuf = nullptr;
+	char *sp = buf;
+
+	int i = 0;
+	while (nullptr != (sp = strtok_r(sp, ",", &tempBuf)))
+	{
+		if (0 == i)
+		{
+			strncpy(sip, sp, sipSize - 1);
+		}
+		else if (1 == i)
+		{
+			strncpy(eip, sp, eipSize - 1);
+		}
+		else if (2 == i)
+		{
+			strncpy(country, sp, countrySize - 1);
+			for (int j = 0; j < countrySize; j++)
+			{
+				if (country[j] == '\n' || country[j] == '\r')
+				{
+					country[j] = 0;
+				}
+			}
+		}
+
+		if (File_City == type)
+		{
+			if (3 == i)
+			{
+				strncpy(state, sp, stateSize - 1);
+			}
+			else if (4 == i)
+			{
+				strncpy(city, sp, citySize - 1);
+			}
+			else if (5 == i)
+			{
+				(*latitude) = atof(sp);
+			}
+			else if (6 == i)
+			{
+				(*longitude) = atof(sp);
+			}
+		}
+
+		//printf(sp);
+		//printf("\r\n");
+		sp = nullptr;
+		i++;
+	}
+
+	if (File_Country == type)
+	{
+		return i == 3;
+	}
+	else if (File_City == type)
+	{
+		return i == 8;
+	}
+	else
+	{
+		return false;
+	}
 }
 
-void ST2BestRegion(union RegionUnion num, char *region)
+unsigned long Ip2Num(char *ip)
 {
-	BestRegion(num.g, region);
+	unsigned long u1, u2, u3, u4;
+	if (sscanf(ip, "%lu.%lu.%lu.%lu", &u1, &u2, &u3, &u4) == 4)
+	{
+		if (u1 <= 255 && u2 <= 255 && u3 <= 255 && u4 <= 255)
+		{
+			return u1 * 16777216 + u2 * 65536 + u3 * 256 + u4;
+		}
+	}
+	return 0;
 }
 
-void UL2BestRegion(unsigned long long num, char *region)
+void Num2Ip(unsigned long num, char *ip)
 {
-	unsigned char a[RegionMax] = { 0 };
-#if RegionMax == 8
+	sprintf(ip, "%lu.%lu.%lu.%lu", num >> 24 & 0xff, num >> 16 & 0xff, num >> 8 & 0xff, num & 0xff);
+}
+
+unsigned char Country2Num(char *country)
+{
+	for (int i = 0; i < 255; i++)
+	{
+		if (0 == strcmp(country, CountryCode[i]))
+		{
+			return i;
+		}
+	}
+	return 0;
+}
+
+void Num2Country(unsigned char r, char *country)
+{
+	strcpy(country, CountryCode[r]);
+}
+
+const char* Num2CountryEx(unsigned char r)
+{
+	return CountryCode[r];
+}
+
+
+void UL2Country(unsigned long long num, char *country)
+{
+#if 0
+	sprintf(country, "%s,%s,%s,%s,%s,%s,%s,%s",
+		CountryCode[num >> 56 & 0xff], CountryCode[num >> 48 & 0xff], CountryCode[num >> 40 & 0xff], CountryCode[num >> 32 & 0xff],
+		CountryCode[num >> 24 & 0xff], CountryCode[num >> 16 & 0xff], CountryCode[num >> 8 & 0xff], CountryCode[num & 0xff]);
+#else
+	sprintf(country, "%s,%s,%s,%s,%s,%s,%s,%s",
+		CountryCode[num & 0xff], CountryCode[num >> 8 & 0xff], CountryCode[num >> 16 & 0xff], CountryCode[num >> 24 & 0xff],
+		CountryCode[num >> 32 & 0xff], CountryCode[num >> 40 & 0xff], CountryCode[num >> 48 & 0xff], CountryCode[num >> 56 & 0xff]);
+#endif
+}
+
+void ST2Country(union CountryUnion num, char *country)
+{
+	sprintf(country, "%s,%s,%s,%s,%s,%s,%s,%s",
+		CountryCode[num.g[0]], CountryCode[num.g[1]], CountryCode[num.g[2]], CountryCode[num.g[3]], CountryCode[num.g[4]], CountryCode[num.g[5]], CountryCode[num.g[6]], CountryCode[num.g[7]]);
+}
+
+
+void ST2BestCountry(union CountryUnion num, char *country)
+{
+	strcpy(country, Num2CountryEx(BestCountry(num.g)));
+}
+
+void UL2BestCountry(unsigned long long num, char *country)
+{
+	unsigned char a[CountryMax] = { 0 };
+#if CountryMax == 8
 	a[0] = num >> 56 & 0xff;
 	a[1] = num >> 48 & 0xff;
 	a[2] = num >> 40 & 0xff;
@@ -485,7 +641,7 @@ void UL2BestRegion(unsigned long long num, char *region)
 	a[5] = num >> 16 & 0xff;
 	a[6] = num >> 8 & 0xff;
 	a[7] = num & 0xff;
-#elif RegionMax == 4
+#elif CountryMax == 4
 	a[0] = num >> 24 & 0xff;
 	a[1] = num >> 16 & 0xff;
 	a[2] = num >> 8 & 0xff;
@@ -494,21 +650,25 @@ void UL2BestRegion(unsigned long long num, char *region)
 	a[0] = num >> 8 & 0xff;
 	a[1] = num & 0xff;
 #endif
-
-	BestRegion(a, region);
+	strcpy(country, Num2CountryEx(BestCountry(a)));
 }
 
-void ReadFile(char* filename, struct Data *ip, unsigned long start, unsigned long end)
+void ReadFile(char* filename, struct Data *ip, FileType type, unsigned long start, unsigned long end)
 {
-	char buf[256] = { 0 };
+	char buf[512] = { 0 };
 
-	char sip[64] = { 0 };
-	char eip[64] = { 0 };
-	char region[64] = { 0 };
+	char sip[32] = { 0 };
+	char eip[32] = { 0 };
+	char country[32] = { 0 };
+
+	char state[CITY_STRING_SIZE] = { 0 };
+	char city[CITY_STRING_SIZE] = { 0 };
+	double latitude = 0;
+	double longitude = 0;
 
 	unsigned long usip = 0;
 	unsigned long ueip = 0;
-	unsigned char uregion = 0;
+	unsigned char ucountry = 0;
 
 	unsigned long m = 0;
 
@@ -517,27 +677,48 @@ void ReadFile(char* filename, struct Data *ip, unsigned long start, unsigned lon
 	{
 		while (fgets(buf, 256, fp) != NULL)
 		{
-			if (ReadLine(buf, sip, eip, region))
+			memset(sip, 0, 32);
+			memset(eip, 0, 32);
+			memset(country, 0, 32);
+			memset(state, 0, CITY_STRING_SIZE);
+			memset(city, 0, CITY_STRING_SIZE);
+			latitude = 0;
+			longitude = 0;
+
+			if (ReadLine(buf, sip, 32, eip, 32, country, 32, state, CITY_STRING_SIZE, city, CITY_STRING_SIZE, &latitude, &longitude, type))
 			{
 				usip = Ip2Num(sip);
 				ueip = Ip2Num(eip);
-				uregion = Region2Num(region);
-				if (uregion == 0)
+				ucountry = Country2Num(country);
+				if (ucountry == 0)
 					continue;
 				if (usip > end)
 					break;
 				if (ueip < start)
 					continue;
+
 				for (unsigned long i = (usip > start ? usip : start); i <= ueip && i < end; i++)
 				{
 					m = i - start;
-					for (int j = 0; j < RegionMax; j++)
+
+					if (File_Country == type)
 					{
-						if (0 == ip[m].uRegion.g[j])
+						for (int j = 0; j < CountryMax; j++)
 						{
-							ip[m].uRegion.g[j] = uregion;
-							break;
+							if (0 == ip[m].uCountry.g[j])
+							{
+								ip[m].uCountry.g[j] = ucountry;
+								break;
+							}
 						}
+					}
+					else if (File_City == type)
+					{
+						ip[m].ucCityFileCountry = ucountry;
+						memcpy(ip[m].cState, state, CITY_STRING_SIZE);
+						memcpy(ip[m].cCity, city, CITY_STRING_SIZE);
+						ip[m].dLatitude = latitude;
+						ip[m].dLongitude = longitude;
 					}
 				}
 
@@ -548,20 +729,85 @@ void ReadFile(char* filename, struct Data *ip, unsigned long start, unsigned lon
 	}
 }
 
-void WriteFile(char* filename, struct Data *ip, unsigned long onesize, unsigned long start, unsigned long end)
+
+void WriteFile_City(char* filename, struct Data *ip, unsigned long onesize, unsigned long start, unsigned long end)
 {
 	char buf[256] = { 0 };
 
-	char sip[64] = { 0 };
-	char eip[64] = { 0 };
-	char region[64] = { 0 };
+	char sip[32] = { 0 };
+	char eip[32] = { 0 };
 
 	unsigned long usip = 0;
 	unsigned long ueip = 0;
-	union RegionUnion stRegion;
-	stRegion.ulg = 0;
-	unsigned long long lregion = 0;
-	unsigned long long lnewRegion = 0;
+
+	char state[CITY_STRING_SIZE] = { 0 };
+	char city[CITY_STRING_SIZE] = { 0 };
+	double latitude = 0;
+	double longitude = 0;
+
+	struct Data sOld;
+	bool useCountry;
+
+	FILE *fp = fopen(filename, "ab+");
+	if (fp)
+	{
+		for (unsigned long i = 0; i < onesize; i++)
+		{
+			ip[i].GenBestCountry();
+			useCountry = ip[i].IsUseCountry();
+
+			if (0 == i)
+			{
+				sOld.Copy(ip[i]);
+				usip = i;
+			}
+			if (!sOld.CmpForCity(ip[i], useCountry))
+			{
+				if (i > 0 && 0 != sOld.ucBestCountry)
+				{
+					ueip = i - 1;
+					Num2Ip(usip + start, sip);
+					Num2Ip(ueip + start, eip);
+
+					fprintf(fp, "%s,%s,%s,%s,%s,%lf,%lf\n",
+						sip, eip, Num2CountryEx(sOld.ucBestCountry),
+						sOld.cState, sOld.cCity, sOld.dLatitude, sOld.dLongitude);
+				}
+				sOld.Copy(ip[i]);
+				usip = i;
+			}
+		}
+
+		if (0 != sOld.ucBestCountry)
+		{
+			ueip = onesize - 1;
+			Num2Ip(usip + start, sip);
+			Num2Ip(ueip + start, eip);
+
+			fprintf(fp, "%s,%s,%s,%s,%s,%lf,%lf\n",
+				sip, eip, Num2CountryEx(sOld.ucBestCountry),
+				sOld.cState, sOld.cCity, sOld.dLatitude, sOld.dLongitude);
+		}
+
+		fclose(fp);
+		fp = NULL;
+	}
+}
+
+void WriteFile_Country(char* filename, struct Data *ip, unsigned long onesize, unsigned long start, unsigned long end)
+{
+	char buf[256] = { 0 };
+
+	char sip[32] = { 0 };
+	char eip[32] = { 0 };
+	char country[64] = { 0 };
+
+	unsigned long usip = 0;
+	unsigned long ueip = 0;
+	union CountryUnion stCountry;
+	stCountry.ulg = 0;
+	unsigned long long lcountry = 0;
+	unsigned long long lnewCountry = 0;
 
 	FILE *fp = fopen(filename, "ab+");
 	if (fp)
@@ -569,54 +815,69 @@ void WriteFile(char* filename, struct Data *ip, unsigned long onesize, unsigned 
 		for (unsigned long i = 0; i < onesize; i++)
 		{
 #if 0
-			lnewRegion = ip[i].uRegion.g[0];
-			for (int j = 1; j < RegionMax; j++)
+			lnewCountry = ip[i].uCountry.g[0];
+			for (int j = 1; j < CountryMax; j++)
 			{
-				if (0 == ip[i].uRegion.g[j])
+				if (0 == ip[i].uCountry.g[j])
 					break;
-				lnewRegion += (unsigned long long) ip[i].uRegion.g[j] * (unsigned long long)pow((double)256, j);
+				lnewCountry += (unsigned long long) ip[i].uCountry.g[j] * (unsigned long long)pow((double)256, j);
 			}
 #endif
-			lnewRegion = ip[i].uRegion.ulg;
+			lnewCountry = ip[i].uCountry.ulg;
 			if (0 == i)
 			{
-				lregion = lnewRegion;
-				stRegion.ulg = lregion;
+				lcountry = lnewCountry;
+				stCountry.ulg = lcountry;
 				usip = i;
 			}
-			if (lregion != lnewRegion)
+			if (lcountry != lnewCountry)
 			{
-				if (i > 0 && 0 != lregion)
+				if (i > 0 && 0 != lcountry)
 				{
 					ueip = i - 1;
 					Num2Ip(usip + start, sip);
 					Num2Ip(ueip + start, eip);
 
-					ST2Region(stRegion, region);
-					//UL2Region(lregion, region);  //输出 合并后的 所有区域
-					//UL2BestRegion(lregion, region);  //输出 最优区域
-					fprintf(fp, "%s,%s,%s\n", sip, eip, region);
+					ST2Country(stCountry, country);
+					//ST2BestCountry(stCountry, country);
+					//UL2Country(lcountry, country);  //输出 合并后的 所有区域
+					//UL2BestCountry(lcountry, country);  //输出 最优区域
+					fprintf(fp, "%s,%s,%s\n", sip, eip, country);
 				}
-				lregion = lnewRegion;
-				stRegion.ulg = lregion;
+				lcountry = lnewCountry;
+				stCountry.ulg = lcountry;
 				usip = i;
 			}
 		}
 
-		if (0 != lregion)
+		if (0 != lcountry)
 		{
 			ueip = onesize - 1;
 			Num2Ip(usip + start, sip);
 			Num2Ip(ueip + start, eip);
 
-			ST2Region(stRegion, region);
-			//UL2Region(lregion, region);  //输出 合并后的 所有区域
-			//UL2BestRegion(lregion, region); //输出 最优区域
-			fprintf(fp, "%s,%s,%s\n", sip, eip, region);
+			ST2Country(stCountry, country);
+			//ST2BestCountry(stCountry, country);
+			//UL2Country(lcountry, country);  //输出 合并后的 所有区域
+			//UL2BestCountry(lcountry, country); //输出 最优区域
+			fprintf(fp, "%s,%s,%s\n", sip, eip, country);
 		}
 
 		fclose(fp);
 		fp = NULL;
+	}
+}
+
+void WriteFile(char* filename, struct Data *ip, FileType type, unsigned long onesize, unsigned long start, unsigned long end)
+{
+
+	if (File_Country == type)
+	{
+		WriteFile_Country(filename, ip, onesize, start, end);
+	}
+	else if (File_City == type)
+	{
+		WriteFile_City(filename, ip, onesize, start, end);
 	}
 }
 
@@ -633,25 +894,37 @@ int main()
 	{
 		fclose(fp);
 		fp = NULL;
-	}
+}
 
 	unsigned long		as = GetTickCountPortable();
 
-	unsigned int gap = 64;
+	unsigned int gap = 512;
 	unsigned long ONE_SIZE = FXULONG_MAX / gap;
-	printf("%lld\r\n", ONE_SIZE);
+	printf("%lu\r\n", ONE_SIZE);
 	struct Data *ip = (struct Data*)calloc(ONE_SIZE, sizeof(struct Data));
 	for (unsigned long i = 0; i < gap; i++)
 	{
-		memset(ip, 0, ONE_SIZE* sizeof(struct Data));
+
+		memset(ip, 0, ONE_SIZE * sizeof(struct Data));
 
 		unsigned long start = ONE_SIZE * i;
 		unsigned long end = ONE_SIZE * (i + 1);
-#if 1
-		ReadFile("d:\\asn-country-ipv4.csv", ip, start, end);
-		ReadFile("d:\\geo-asn-country-ipv4.csv", ip, start, end);
 
-		WriteFile("d:\\out.csv", ip, ONE_SIZE, start, end);
+		char sip[32] = { 0 };
+		Num2Ip(start, sip);
+
+		printf("%lu %s\r\n", i, sip);
+#if 1
+		ReadFile("d:\\testcsv\\asn-country-ipv4.csv", ip, File_Country, start, end);
+		ReadFile("d:\\testcsv\\geo-asn-country-ipv4.csv", ip, File_Country, start, end);
+		ReadFile("d:\\testcsv\\dbip-country-ipv4.csv", ip, File_Country, start, end);
+		ReadFile("d:\\testcsv\\geolite2-country-ipv4.csv", ip, File_Country, start, end);
+		ReadFile("d:\\testcsv\\iptoasn-country-ipv4.csv", ip, File_Country, start, end);
+
+		ReadFile("d:\\testcsv\\dbip-city-ipv4.csv", ip, File_City, start, end);
+
+		//WriteFile("d:\\testcsv\\out.csv", ip, File_Country, ONE_SIZE, start, end);
+		WriteFile("d:\\testcsv\\out.csv", ip, File_City, ONE_SIZE, start, end);
 #else
 
 		ReadFile("./testcsv/asn-country-ipv4.csv", ip, start, end);
